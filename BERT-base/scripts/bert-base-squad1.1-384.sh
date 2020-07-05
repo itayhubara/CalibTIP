@@ -1,5 +1,5 @@
 export SQUAD_DIR=/media/drive/Datasets/squad
-CUDA_VISIBLE_DEVICES=2 python ./examples/run_squad.py \
+CUDA_VISIBLE_DEVICES=2 python ./examples/question-answering/run_squad.py \
     --model_type bert \
     --model_name_or_path bert-base-uncased \
     --do_train \
