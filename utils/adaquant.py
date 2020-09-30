@@ -40,7 +40,7 @@ def optimize_qparams(layer, cached_inps, cached_outs, test_inp, test_out, batch_
     return mse_before, mse_after
 
 
-def adaquant(layer, cached_inps, cached_outs, test_inp, test_out, lr1=1e-4, lr2=1e-2, iters=100, progress=True, batch_size=50):
+def adaquant(layer, cached_inps, cached_outs, test_inp, test_out, lr1=1e-4, lr2=1e-2, iters=100, progress=True, batch_size=50,relu=False):
     print("\nRun adaquant")
     mse_before = F.mse_loss(layer(test_inp), test_out)
 
@@ -67,7 +67,10 @@ def adaquant(layer, cached_inps, cached_outs, test_inp, test_out, lr1=1e-4, lr2=
         train_out = cached_outs[idx]#.cuda()
 
         qout = layer(train_inp)
-        loss = F.mse_loss(qout, train_out)
+        if relu:
+            loss = F.mse_loss(F.relu(qout), F.relu(train_out))
+        else:    
+            loss = F.mse_loss(qout, train_out)
 
         losses.append(loss.item())
         opt_w.zero_grad()
@@ -111,7 +114,10 @@ def optimize_layer(layer, in_out, optimize_weights=False):
     # print("MSE after qparams: {}".format(mse_after))
 
     if optimize_weights:
-        mse_before, mse_after = adaquant(layer, cached_inps, cached_outs, test_inp, test_out, iters=100, lr1=1e-5, lr2=1e-4)
+        if 'conv1' in layer.name or 'conv2' in layer.name:
+            mse_before, mse_after = adaquant(layer, cached_inps, cached_outs, test_inp, test_out, iters=100, lr1=1e-5, lr2=1e-4,relu=True)
+        else:
+            mse_before, mse_after = adaquant(layer, cached_inps, cached_outs, test_inp, test_out, iters=100, lr1=1e-5, lr2=1e-4) 
         mse_before_opt = mse_before
         print("MSE before adaquant: {}".format(mse_before))
         print("MSE after adaquant: {}".format(mse_after))
