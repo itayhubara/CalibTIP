@@ -1,12 +1,12 @@
 export datasets_dir=/home/Datasets
 export model=${1:-"resnet"}
 export model_vis=${2:-"resnet50"}
-export nbits_switch="2 3 4 5 6 7 8"
+export nbits_switch="2 3 4 5 6 7"
 export nbits_weight_m2=${3:-8}
 export nbits_act_m2=${4:-8}
 export perC=True
 export adaquant=True
-export precisions="2;3;4;5;6;7;8"
+export precisions="8;7;6;5;4;3;2"
 export min_compression=0.13
 export max_compression=0.25
 
