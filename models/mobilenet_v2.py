@@ -174,4 +174,6 @@ def mobilenet_v2(**config):
     """
     dataset = config.pop('dataset', 'imagenet')
     assert dataset == 'imagenet'
+    if 'depth' in config:
+        config.pop('depth')
     return MobileNetV2(**config)

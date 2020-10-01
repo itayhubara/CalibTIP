@@ -625,10 +625,10 @@ def main_worker(args):
             else:
                 df = pd.read_csv(args.res_log, index_col=0)
 
-            ckp = ntpath.basename(args.resume)
+            ckp = ntpath.basename(args.evaluate)
             if 'bn_tuning' in ckp:
                 ckp = ckp.replace('.bn_tuning', '')
-            df.loc[ckp, 'acc_bias_tuning'] = best_prec1
+            df.loc[ckp, 'acc_bias_tuning'] = val_results['prec1']
             df.to_csv(args.res_log)
         # import pdb; pdb.set_trace()
     else:

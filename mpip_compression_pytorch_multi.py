@@ -3,12 +3,15 @@ from pulp import *
 import numpy as np
 import argparse
 from main import main_with_args as main_per_layer
+import os
 
 Debug = False
 
 def mpip_compression(files=None, replace_precisions=None, Degradation=None, noise=None, method='acc', base_precision=8):
-
     data = {}
+    if files[0] == '':
+        files = files[1:]
+
     for f, prec in zip(files, replace_precisions):
         data[prec] = pd.read_csv(f)
 

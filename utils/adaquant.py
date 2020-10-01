@@ -115,6 +115,7 @@ def optimize_layer(layer, in_out, optimize_weights=False):
 
     if optimize_weights:
         if 'conv1' in layer.name or 'conv2' in layer.name:
+        # if layer.name.endswith('0.0') or layer.name.endswith('0.1') or layer.name.endswith('18.0'):
             mse_before, mse_after = adaquant(layer, cached_inps, cached_outs, test_inp, test_out, iters=100, lr1=1e-5, lr2=1e-4,relu=True)
         else:
             mse_before, mse_after = adaquant(layer, cached_inps, cached_outs, test_inp, test_out, iters=100, lr1=1e-5, lr2=1e-4) 
