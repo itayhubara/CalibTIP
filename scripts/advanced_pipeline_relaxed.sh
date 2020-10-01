@@ -5,7 +5,7 @@ sh scripts/adaquant.sh resnet resnet50 5 5 True
 sh scripts/adaquant.sh resnet resnet50 6 6 True
 sh scripts/adaquant.sh resnet resnet50 7 7 True
 sh scripts/adaquant.sh resnet resnet50 8 8 True
-sh scripts/integer-programing_relaxed.sh resnet resnet50 '2 3 4 5 6 7 8' 8 8 50 loss True
+sh scripts/integer-programing_relaxed.sh resnet resnet50 '2 3 4 5 6 7' 8 8 50 loss True
 
 # Uncomment to run first configuration only
 #for cfg_idx in 0
