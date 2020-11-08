@@ -133,8 +133,8 @@ class UniformQuantize(InplaceFunction):
         qmax = qmin + 2.**num_bits - 1.
         running_range=qparams.range.clamp(min=1e-6,max=1e5)
         scale = running_range / (qmax - qmin)
-        running_zero_point_round = Round().apply(qmin-zero_point/scale,False)
-        zero_point = (qmin-running_zero_point_round.clamp(qmin,qmax))*scale    
+        # running_zero_point_round = Round().apply(qmin-zero_point/scale,False)
+        # zero_point = (qmin-running_zero_point_round.clamp(qmin,qmax))*scale
         output.add_(qmin * scale - zero_point).div_(scale)
         if stochastic:
             noise = output.new(output.shape).uniform_(-0.5, 0.5)
@@ -237,9 +237,10 @@ def quantize_with_grad(input, num_bits=None, qparams=None, flatten_dims=_DEFAULT
     qmax = qmin + 2.**num_bits - 1.
     # ZP quantization for HW compliance
     running_range=qparams.range.clamp(min=1e-6,max=1e5)
+    zero_point = torch.min(zero_point, zero_point.new_tensor([0.]))
     scale = running_range / (qmax - qmin)
-    running_zero_point_round = Round().apply(qmin-zero_point/scale,False)
-    zero_point = (qmin-running_zero_point_round.clamp(qmin,qmax))*scale
+    # running_zero_point_round = Round().apply(qmin-zero_point/scale,False)
+    # zero_point = (qmin-running_zero_point_round.clamp(qmin,qmax))*scale
     output.add_(qmin * scale - zero_point).div_(scale)
     if stochastic:
         noise = output.new(output.shape).uniform_(-0.5, 0.5)

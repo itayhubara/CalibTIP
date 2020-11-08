@@ -42,7 +42,10 @@ def optimize_qparams(layer, cached_inps, cached_outs, test_inp, test_out, batch_
 
 def adaquant(layer, cached_inps, cached_outs, test_inp, test_out, lr1=1e-4, lr2=1e-2, iters=100, progress=True, batch_size=50,relu=False):
     print("\nRun adaquant")
-    mse_before = F.mse_loss(layer(test_inp), test_out)
+    if relu:
+        mse_before = F.mse_loss(F.relu(layer(test_inp)), F.relu(test_out))
+    else:
+        mse_before = F.mse_loss(layer(test_inp), test_out)
 
     # lr_factor = 1e-2
     # Those hyperparameters tuned for 8 bit and checked on mobilenet_v2 and resnet50
@@ -89,7 +92,10 @@ def adaquant(layer, cached_inps, cached_outs, test_inp, test_out, lr1=1e-4, lr2=
             #     total_loss = np.mean(losses[-10:])
             # print("mse out: {}, pc mean loss: {}, total: {}".format(mse_out.item(), mean_loss.item(), total_loss))
 
-    mse_after = F.mse_loss(layer(test_inp), test_out)
+    if relu:
+        mse_after = F.mse_loss(F.relu(layer(test_inp)), F.relu(test_out))
+    else:
+        mse_after = F.mse_loss(layer(test_inp), test_out)
     return mse_before.item(), mse_after.item()
 
 
@@ -118,7 +124,7 @@ def optimize_layer(layer, in_out, optimize_weights=False):
         # if layer.name.endswith('0.0') or layer.name.endswith('0.1') or layer.name.endswith('18.0'):
             mse_before, mse_after = adaquant(layer, cached_inps, cached_outs, test_inp, test_out, iters=100, lr1=1e-5, lr2=1e-4,relu=True)
         else:
-            mse_before, mse_after = adaquant(layer, cached_inps, cached_outs, test_inp, test_out, iters=100, lr1=1e-5, lr2=1e-4) 
+            mse_before, mse_after = adaquant(layer, cached_inps, cached_outs, test_inp, test_out, iters=100, lr1=1e-5, lr2=1e-4)
         mse_before_opt = mse_before
         print("MSE before adaquant: {}".format(mse_before))
         print("MSE after adaquant: {}".format(mse_after))
