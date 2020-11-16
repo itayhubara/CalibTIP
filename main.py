@@ -378,7 +378,7 @@ def main_worker(args):
     
     train_data = DataRegime(getattr(model, 'data_regime', None),
                             defaults={'datasets_path': args.datasets_dir, 'name': args.dataset, 'split': 'train', 'augment': False,
-                                      'input_size': args.input_size,  'batch_size': args.batch_size, 'shuffle': not args.seq_adaquant,
+                                      'input_size': args.input_size,  'batch_size': args.batch_size, 'shuffle': True,
                                       'num_workers': args.workers, 'pin_memory': True, 'drop_last': True,
                                       'distributed': args.distributed, 'duplicates': args.duplicates, 'autoaugment': args.autoaugment,
                                       'cutout': {'holes': 1, 'length': 16} if args.cutout else None})
@@ -424,12 +424,12 @@ def main_worker(args):
             cached_qinput[module].append(input[0].detach().cpu())
             print(name)
 
-        def hook(module, input, output):
+        def hook(name,module, input, output):
             if module not in cached_input_output:
                 cached_input_output[module] = []
             # Meanwhile store data in the RAM.
             cached_input_output[module].append((input[0].detach().cpu(), output.detach().cpu()))
-            print(module.__str__()[:70])
+            print(name)
 
         from models.modules.quantize import QConv2d, QLinear
         handlers = []
