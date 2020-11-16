@@ -8,10 +8,12 @@ import scipy.optimize as opt
 import numpy as np
 import os
 
+
 QParams = namedtuple('QParams', ['range', 'zero_point', 'num_bits'])
 
 _DEFAULT_FLATTEN = (1, -1)
 _DEFAULT_FLATTEN_GRAD = (0, -1)
+QZP = True
 
 
 def _deflatten_as(x, x_full):
@@ -112,7 +114,7 @@ class UniformQuantize(InplaceFunction):
 
     @staticmethod
     def forward(ctx, input, num_bits=None, qparams=None, flatten_dims=_DEFAULT_FLATTEN,
-                reduce_dim=0, dequantize=True, signed=True, stochastic=False, inplace=False):
+                reduce_dim=0, dequantize=True, signed=False, stochastic=False, inplace=False,quant_zp=QZP):
 
         ctx.inplace = inplace
         #if (num_bits is None and qparams.num_bits>4) or (num_bits is not None and num_bits>4 and input.dim()>2):                                                                         
@@ -133,8 +135,10 @@ class UniformQuantize(InplaceFunction):
         qmax = qmin + 2.**num_bits - 1.
         running_range=qparams.range.clamp(min=1e-6,max=1e5)
         scale = running_range / (qmax - qmin)
-        # running_zero_point_round = Round().apply(qmin-zero_point/scale,False)
-        # zero_point = (qmin-running_zero_point_round.clamp(qmin,qmax))*scale
+        if quant_zp:
+            running_zero_point_round = Round().apply(qmin-zero_point/scale,False)
+        else:
+            zero_point = torch.min(zero_point, zero_point.new_tensor([0.]))
         output.add_(qmin * scale - zero_point).div_(scale)
         if stochastic:
             noise = output.new(output.shape).uniform_(-0.5, 0.5)
@@ -150,7 +154,9 @@ class UniformQuantize(InplaceFunction):
     def backward(ctx, grad_output):
         # straight-through estimator
         grad_input = grad_output
-        return grad_input, None, None, None, None, None, None, None, None
+        return grad_input, None, None, None, None, None, None, None, None, None
+
+
 
 class Round(InplaceFunction):
 
@@ -221,13 +227,14 @@ def linear_biprec(input, weight, bias=None, num_bits_grad=None):
     return out1 + out2 - out1.detach()
 
 
-def quantize_with_grad(input, num_bits=None, qparams=None, flatten_dims=_DEFAULT_FLATTEN, reduce_dim=0, dequantize=True, signed=True, stochastic=False, inplace=False):
+def quantize_with_grad(input, num_bits=None, qparams=None, flatten_dims=_DEFAULT_FLATTEN, reduce_dim=0,clamp=True, dequantize=True, signed=False, stochastic=False, inplace=False,quant_zp=QZP):
                                                                         
     if inplace:
         output = input
     else:
         output = input.clone()
     if qparams is None:
+        import pdb; pdb.set_trace()
         assert num_bits is not None, "either provide qparams of num_bits to quantize"
         qparams = calculate_qparams(
             input, num_bits=num_bits, flatten_dims=flatten_dims, reduce_dim=reduce_dim)
@@ -237,20 +244,26 @@ def quantize_with_grad(input, num_bits=None, qparams=None, flatten_dims=_DEFAULT
     qmax = qmin + 2.**num_bits - 1.
     # ZP quantization for HW compliance
     running_range=qparams.range.clamp(min=1e-6,max=1e5)
-    zero_point = torch.min(zero_point, zero_point.new_tensor([0.]))
     scale = running_range / (qmax - qmin)
-    # running_zero_point_round = Round().apply(qmin-zero_point/scale,False)
-    # zero_point = (qmin-running_zero_point_round.clamp(qmin,qmax))*scale
-    output.add_(qmin * scale - zero_point).div_(scale)
+    if quant_zp:
+        running_zero_point_round = Round().apply(qmin-zero_point/scale,False)
+        zero_point = (qmin-running_zero_point_round.clamp(qmin,qmax))*scale
+    else:
+        zero_point = torch.min(zero_point, zero_point.new_tensor([0.]))    
+    output.add_(qmin * scale - zero_point).div_(scale)        
     if stochastic:
         noise = output.new(output.shape).uniform_(-0.5, 0.5)
         output.add_(noise)
-    # quantize
-    output = Round().apply(output.clamp_(qmin, qmax),inplace)
-    if dequantize:
-        output.mul_(scale).add_(
-            zero_point - qmin * scale)  # dequantize
-    return output
+    if clamp:    
+        # quantize
+        output = Round().apply(output.clamp_(qmin, qmax),inplace)
+        if dequantize:
+            output.mul_(scale).add_(
+                zero_point - qmin * scale)  # dequantize
+        return output
+    else:
+        return output,scale,qmin * scale - zero_point       
+      
 
 def dequantize(input, num_bits=None, qparams=None,signed=False, inplace=False):
                                                                         
@@ -267,8 +280,8 @@ def dequantize(input, num_bits=None, qparams=None,signed=False, inplace=False):
         zero_point - qmin * scale)  # dequantize
     return output
 
-def quantize(x, num_bits=None, qparams=None, flatten_dims=_DEFAULT_FLATTEN, reduce_dim=0, dequantize=True, signed=False, stochastic=False, inplace=False):
-    return UniformQuantize().apply(x, num_bits, qparams, flatten_dims, reduce_dim, dequantize, signed, stochastic, inplace)
+def quantize(x, num_bits=None, qparams=None, flatten_dims=_DEFAULT_FLATTEN, reduce_dim=0, dequantize=True, signed=False, stochastic=False, inplace=False,quant_zp=QZP):
+    return UniformQuantize().apply(x, num_bits, qparams, flatten_dims, reduce_dim, dequantize, signed, stochastic, inplace,quant_zp,STE,eps)
 
 
 def quantize_grad(x, num_bits=None, qparams=None, flatten_dims=_DEFAULT_FLATTEN_GRAD, reduce_dim=0, dequantize=True, signed=False, stochastic=True):
@@ -539,6 +552,74 @@ class QConv2d(nn.Conv2d):
         return output
 
 
+class QConv2dVQ(nn.Conv2d):
+    """docstring for QConv2d."""
+
+    def __init__(self, in_channels, out_channels, kernel_size,
+                 stride=1, padding=0, dilation=1, groups=1, bias=True, num_bits=8, num_bits_weight=8, num_bits_grad=None, perC=True, biprecision=False, measure=False, cal_qparams=False):
+        super(QConv2dVQ, self).__init__(in_channels, out_channels, kernel_size,
+                                      stride, padding, dilation, groups, bias)
+        self.num_bits = num_bits
+        self.num_bits_weight = num_bits_weight or num_bits
+        self.num_bits_grad = num_bits_grad
+        self.measure = measure
+        self.equ_scale = nn.Parameter(torch.ones(out_channels, 1, 1, 1))
+        
+        self.V = nn.Parameter(torch.eye(in_channels)) #,out_channels))
+        self.U = nn.Parameter(torch.eye(in_channels)) #,out_channels))
+        if measure:
+            self.quantize_input = QuantMeasure(
+                self.num_bits, shape_measure=(1, 1, 1, 1), flatten_dims=(1, -1), measure=measure, cal_qparams=cal_qparams)
+            self.quantize_weight = QuantMeasure(
+                self.num_bits, shape_measure=(out_channels if perC else 1, 1, 1, 1), flatten_dims=(1,-1) if perC else (0,-1), measure=measure, reduce_dim=None if perC else 0)
+        else:
+            self.quantize_input = QuantThUpdate(
+                self.num_bits, shape_measure=(1, 1, 1, 1), flatten_dims=(1, -1), measure=measure)
+            self.quantize_weight = QuantThUpdate(
+                self.num_bits, shape_measure=(out_channels if perC else 1, 1, 1, 1), flatten_dims=(1,-1) if perC else (0,-1), measure=measure, reduce_dim=None if perC else 0)
+        self.biprecision = biprecision
+        self.cal_params = cal_qparams
+        self.quantize = True
+
+    def reset(self):
+        stdv = 1. / math.sqrt(self.U.size(1))
+        self.U.data.uniform_(-stdv,stdv)
+        self.V.data.uniform_(-stdv,stdv)
+
+    def forward(self, input):
+        
+        qweight = self.quantize_weight(self.weight * self.equ_scale) if self.quantize and not self.cal_params else self.weight
+        B,C,H,W=input.shape
+        vx=self.V.mm(input.transpose(0,1).contiguous().view(C,-1))
+        qvx = self.quantize_input(vx.view(C,B,H,W).transpose(1,0).contiguous()).transpose(0,1).contiguous().view(C,-1) if self.quantize else input
+        qinput = self.U.mm(qvx).view(C,B,H,W).transpose(1,0).contiguous() if self.quantize else qvx
+        #import pdb; pdb.set_trace()
+        #qinput = self.quantize_input(input) if self.quantize else input
+        #vq_weight=self.V.mm(self.weight.view(self.out_channels,-1)).view(self.weight.shape) # * self.equ_scale)
+        #qweight = self.quantize_weight(vq_weight) if self.quantize and not self.cal_params else self.weight
+        #qweight = self.U.mm(qweight.view(self.out_channels,-1)).view(self.weight.shape)
+        #if not self.measure:
+        #    import pdb; pdb.set_trace()
+        #else:
+        #    print('measuring')    
+        if not self.measure and os.environ.get('DEBUG')=='True':
+            assert  qinput.unique().numel()<=2**self.num_bits
+            assert  qweight[0].unique().numel()<=2**self.num_bits_weight
+        if self.bias is not None:
+            qbias = self.bias if (self.measure or not self.quantize) else quantize(self.bias, num_bits=self.num_bits_weight + self.num_bits,flatten_dims=(0, -1))
+        else:
+            qbias = None
+        if not self.biprecision or self.num_bits_grad is None:
+            output = F.conv2d(qinput, qweight, qbias, self.stride,
+                              self.padding, self.dilation, self.groups)
+            if self.num_bits_grad is not None:
+                output = quantize_grad(
+                    output, num_bits=self.num_bits_grad, flatten_dims=(1, -1))
+        else:
+            output = conv2d_biprec(qinput, qweight, qbias, self.stride,
+                                   self.padding, self.dilation, self.groups, num_bits_grad=self.num_bits_grad)
+        return output
+
 class QSigmoid(nn.Sigmoid):
     """docstring for QSigmoid."""
 
@@ -657,6 +738,64 @@ class QLinear(nn.Linear):
     def forward(self, input):
         qinput = self.quantize_input(input) if self.quantize else input
         qweight = self.quantize_weight(self.weight * self.equ_scale) if self.quantize and not self.cal_params else self.weight
+        if not self.measure and os.environ.get('DEBUG')=='True':
+            assert  qinput.unique().numel()<=2**self.num_bits
+            assert  qweight[0].unique().numel()<=2**self.num_bits_weight
+        if self.bias is not None:
+            qbias = self.bias if (self.measure or not self.quantize) else quantize(
+                self.bias, num_bits=self.num_bits_weight + self.num_bits,
+                flatten_dims=(0, -1))
+        else:
+            qbias = None
+
+        if not self.biprecision or self.num_bits_grad is None:
+            output = F.linear(qinput, qweight, qbias)
+            if self.num_bits_grad is not None:
+                output = quantize_grad(
+                    output, num_bits=self.num_bits_grad)
+        else:
+            output = linear_biprec(qinput, qweight, qbias, self.num_bits_grad)
+        return output
+
+class QLinearVQ(nn.Linear):
+    """docstring for QConv2d."""
+
+    def __init__(self, in_features, out_features, bias=True, num_bits=8, num_bits_weight=8, num_bits_grad=None, perC=True, biprecision=False,measure=False, cal_qparams=False):
+        super(QLinearVQ, self).__init__(in_features, out_features, bias)
+        self.num_bits = num_bits
+        self.num_bits_weight = num_bits_weight or num_bits
+        self.num_bits_grad = num_bits_grad
+        self.biprecision = biprecision
+        self.equ_scale = nn.Parameter(torch.ones(out_features, 1))
+        self.V = nn.Parameter(torch.eye(in_features))
+        self.U = nn.Parameter(torch.eye(in_features))
+
+        if measure:
+            self.quantize_input = QuantMeasure(self.num_bits,measure=measure, cal_qparams=cal_qparams)
+            self.quantize_weight = QuantMeasure(self.num_bits,shape_measure=(out_features if perC else 1, 1), flatten_dims=(1,-1) if perC else (0,-1), measure=measure,reduce_dim=None if perC else 0)
+        else:
+            self.quantize_input = QuantThUpdate(self.num_bits,measure=measure)
+            self.quantize_weight = QuantThUpdate(self.num_bits,shape_measure=(out_features if perC else 1, 1), flatten_dims=(1,-1) if perC else (0,-1), measure=measure,reduce_dim=None if perC else 0)
+        self.measure = measure
+        self.cal_params = cal_qparams
+        self.quantize = True
+
+    def reset(self):
+        stdv = 1. / math.sqrt(self.U.size(1))
+        self.U.data.uniform_(-stdv,stdv)
+        self.V.data.uniform_(-stdv,stdv)
+
+    def forward(self, input):
+        
+        vx=self.V.mm(input.transpose(0,1).contiguous())
+        qvx = self.quantize_input(vx) if self.quantize else input
+        qinput=self.U.mm(qvx).transpose(1,0).contiguous() if self.quantize else input
+        qweight = self.quantize_weight(self.weight) if self.quantize and not self.cal_params else self.weight
+        
+        #qinput = self.quantize_input(input) if self.quantize else input
+        #vq_weight=self.V.mm(self.weight.view(self.out_features,-1)).view(self.weight.shape)
+        #qweight = self.quantize_weight(vq_weight) if self.quantize and not self.cal_params else self.weight
+        #qweight = self.U.mm(qweight)
         if not self.measure and os.environ.get('DEBUG')=='True':
             assert  qinput.unique().numel()<=2**self.num_bits
             assert  qweight[0].unique().numel()<=2**self.num_bits_weight

@@ -36,7 +36,7 @@ import shutil
 from models.modules.quantize import QParams
 import ast
 import ntpath
-
+from functools import partial
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -169,7 +169,9 @@ parser.add_argument('--mixed_builder', action='store_true', default=False,
 parser.add_argument('--suffix', default='', type=str,
                     help='suffix to add to saved mixed-ip results')                    
 parser.add_argument('--adaquant', action='store_true', default=False,
-                    help='Applying Adaquant MSE minimization')       
+                    help='Applying Adaquant MSE minimization'),
+parser.add_argument('--seq_adaquant', action='store_true', default=False,
+                    help='Applying sequential Adaquant MSE minimization')                             
 parser.add_argument('--per-layer', action='store_true', default=False,
                     help='Applying per-layer for IP mixed-precision')       
 parser.add_argument('--mixed-builder', action='store_true', default=False,
@@ -410,6 +412,13 @@ def main_worker(args):
          '.quantize_weight.running_zero_point', '.quantize_weight.running_range','.quantize_input1.running_zero_point', '.quantize_input1.running_range'
          '.quantize_input2.running_zero_point', '.quantize_input2.running_range']        
     if args.adaquant:
+        def Qhook(name,module, input, output):
+            if module not in cached_qinput:
+                cached_qinput[module] = []
+            # Meanwhile store data in the RAM.
+            cached_qinput[module].append(input[0].detach().cpu())
+            print(name)
+
         def hook(module, input, output):
             if module not in cached_input_output:
                 cached_input_output[module] = []
@@ -420,13 +429,14 @@ def main_worker(args):
         from models.modules.quantize import QConv2d, QLinear
         handlers = []
         count = 0
-        for m in model.modules():
+        for name, m in model.named_modules():
             if isinstance(m, QConv2d) or isinstance(m, QLinear):
+            #if isinstance(m, QConv2d) or isinstance(m, QLinear):
             # if isinstance(m, QConv2d):
                 m.quantize = False
                 if count < 1000:
                 # if (isinstance(m, QConv2d) and m.groups == 1) or isinstance(m, QLinear):
-                    handlers.append(m.register_forward_hook(hook))
+                    handlers.append(m.register_forward_hook(partial(hook,name)))
                     count += 1
 
         # Store input/output for all quantizable layers
@@ -443,6 +453,19 @@ def main_worker(args):
         mse_df = pd.DataFrame(index=np.arange(len(cached_input_output)), columns=['name', 'bit', 'shape', 'mse_before', 'mse_after'])
         print_freq = 100
         for i, layer in enumerate(cached_input_output):
+            if i>0 and args.seq_adaquant:
+                count = 0
+                cached_qinput = {}
+                for name, m in model.named_modules():
+                    if layer.name==name:
+                        if count < 1000:
+                            handler= m.register_forward_hook(partial(Qhook,name))
+                            count += 1
+                # Store input/output for all quantizable layers
+                trainer.validate(train_data.get_loader())
+                print("cashed quant Input%s"%layer.name)
+                cached_input_output[layer][0] = (cached_qinput[layer][0],cached_input_output[layer][0][1])
+                handler.remove()            
             print("\nOptimize {}:{} for {} bit of shape {}".format(i, layer.name, layer.num_bits, layer.weight.shape))
             mse_before, mse_after, snr_before, snr_after, kurt_in, kurt_w = \
                 optimize_layer(layer, cached_input_output[layer], args.optimize_weights)
