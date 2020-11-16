@@ -17,7 +17,7 @@ from utils.optim import OptimRegime
 from utils.cross_entropy import CrossEntropyLoss
 from utils.misc import torch_dtypes
 from utils.param_filter import FilterModules, is_bn
-
+from utils.convert_pytcv_model import convert_pytcv_model
 from datetime import datetime
 from ast import literal_eval
 from trainer import Trainer
@@ -271,6 +271,11 @@ def main_worker(args):
             import torchvision
             exec_lfv_str = 'torchvision.models.' + args.load_from_vision + '(pretrained=True)'
             model = eval(exec_lfv_str)
+            if 'pytcv' in args.model:
+                from pytorchcv.model_provider import get_model as ptcv_get_model
+                exec_lfv_str ='ptcv_get_model("'+ args.load_from_vision +'", pretrained=True)'
+                model_pytcv = eval(exec_lfv_str)
+                model = convert_pytcv_model(model,model_pytcv)
         else:
             if not os.path.isfile(args.absorb_bn):
                 parser.error('invalid checkpoint: {}'.format(args.evaluate))
