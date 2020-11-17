@@ -378,7 +378,7 @@ def main_worker(args):
     
     train_data = DataRegime(getattr(model, 'data_regime', None),
                             defaults={'datasets_path': args.datasets_dir, 'name': args.dataset, 'split': 'train', 'augment': False,
-                                      'input_size': args.input_size,  'batch_size': args.batch_size, 'shuffle': True,
+                                      'input_size': args.input_size,  'batch_size': args.batch_size, 'shuffle': not args.seq_adaquant,
                                       'num_workers': args.workers, 'pin_memory': True, 'drop_last': True,
                                       'distributed': args.distributed, 'duplicates': args.duplicates, 'autoaugment': args.autoaugment,
                                       'cutout': {'holes': 1, 'length': 16} if args.cutout else None})
