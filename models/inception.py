@@ -498,7 +498,7 @@ class BasicConv2d(nn.Module):
     ) -> None:
         super(BasicConv2d, self).__init__()
         batchnorm = kwargs.pop('batch_norm')
-        self.conv = QConv2d(in_channels, out_channels, bias=False, **kwargs)
+        self.conv = QConv2d(in_channels, out_channels, bias=not batchnorm, **kwargs)
         self.bn = depBatchNorm2d(batchnorm, out_channels, eps=0.001)
 
     def forward(self, x: Tensor) -> Tensor:
