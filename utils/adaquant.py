@@ -43,7 +43,7 @@ def optimize_qparams(layer, cached_inps, cached_outs, test_inp, test_out, batch_
 def adaquant(layer, cached_inps, cached_outs, test_inp, test_out, lr1=1e-4, lr2=1e-2, iters=100, progress=True, batch_size=50,relu=False):
     print("\nRun adaquant")
     if relu:
-        mse_before = F.mse_loss(F.relu(layer(test_inp)), F.relu(test_out))
+        mse_before = F.mse_loss(F.relu_(layer(test_inp)), F.relu_(test_out))
     else:
         mse_before = F.mse_loss(layer(test_inp), test_out)
 
@@ -71,7 +71,7 @@ def adaquant(layer, cached_inps, cached_outs, test_inp, test_out, lr1=1e-4, lr2=
 
         qout = layer(train_inp)
         if relu:
-            loss = F.mse_loss(F.relu(qout), F.relu(train_out))
+            loss = F.mse_loss(F.relu_(qout), F.relu_(train_out))
         else:    
             loss = F.mse_loss(qout, train_out)
 
@@ -93,7 +93,7 @@ def adaquant(layer, cached_inps, cached_outs, test_inp, test_out, lr1=1e-4, lr2=
             # print("mse out: {}, pc mean loss: {}, total: {}".format(mse_out.item(), mean_loss.item(), total_loss))
 
     if relu:
-        mse_after = F.mse_loss(F.relu(layer(test_inp)), F.relu(test_out))
+        mse_after = F.mse_loss(F.relu_(layer(test_inp)), F.relu_(test_out))
     else:
         mse_after = F.mse_loss(layer(test_inp), test_out)
     return mse_before.item(), mse_after.item()
