@@ -67,8 +67,8 @@ def pad_random_crop(input_size, scale_size=None, normalize=_IMAGENET_STATS):
 
 def inception_preproccess(input_size, normalize=_IMAGENET_STATS):
     return transforms.Compose([
-        transforms.RandomResizedCrop(input_size),
-        transforms.RandomHorizontalFlip(),
+        transforms.Resize(input_size),
+        transforms.CenterCrop(input_size),
         transforms.ToTensor(),
         transforms.Normalize(**normalize)
     ])
@@ -106,8 +106,9 @@ def get_transform(transform_name='imagenet', input_size=None, scale_size=None,
     transform_fn = None
 
     if 'imagenet' in transform_name:  # inception augmentation is default for imagenet
-        scale_size = scale_size or 256
+        scale_size = scale_size or (input_size or 256)
         input_size = input_size or 224
+        augment = True
         if augment:
             transform_fn = inception_preproccess(input_size,
                                                  normalize=normalize)

@@ -41,6 +41,7 @@ from functools import partial
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
                      and callable(models.__dict__[name]))
+
 parser = argparse.ArgumentParser(description='PyTorch ConvNet Training')
 
 parser.add_argument('--results-dir', metavar='RESULTS_DIR', default='./results',
@@ -279,7 +280,7 @@ def main_worker(args):
         else:
             if not os.path.isfile(args.absorb_bn):
                 parser.error('invalid checkpoint: {}'.format(args.evaluate))
-            model = model_(**model_config)
+            model = model(**model_config)
             checkpoint = torch.load(args.absorb_bn,map_location=lambda storage, loc: storage)
             checkpoint = checkpoint['state_dict'] if 'state_dict' in checkpoint.keys() else checkpoint
             model.load_state_dict(checkpoint,strict=False)
@@ -291,9 +292,12 @@ def main_worker(args):
         else:    
             filename_bn = save_path+'/'+args.model+'.with_bn'
             torch.save(model.state_dict(),filename_bn)
-        if args.load_from_vision: return
-           
-    model = model(**model_config)
+        if (args.load_from_vision or args.absorb_bn) and not args.evaluate_init_configuration: return
+
+    if 'inception' in args.model:
+        model = model(init_weights=False, **model_config)
+    else:
+        model = model(**model_config)
     logging.info("created model with configuration: %s", model_config)
     
     num_parameters = sum([l.nelement() for l in model.parameters()])
@@ -314,7 +318,7 @@ def main_worker(args):
             model.load_state_dict(checkpoint['state_dict'])
             logging.info("loaded checkpoint '%s'", args.evaluate)
         else:
-            model.load_state_dict(checkpoint,strict=False)    
+            model.load_state_dict(checkpoint,strict=False)
             logging.info("loaded checkpoint '%s'",args.evaluate)
           
 
@@ -384,7 +388,7 @@ def main_worker(args):
                                       'cutout': {'holes': 1, 'length': 16} if args.cutout else None})
     if args.names_sp_layers is None and args.layers_precision_dict is None:
         args.names_sp_layers =  [key[:-7] for key in model.state_dict().keys() if 'weight' in key and 'running' not in key and ('conv' in key or 'downsample.0' in key or 'fc' in key)]
-        if args.keep_first_last: args.names_sp_layers=[name for name in args.names_sp_layers if name!='conv1' and name!='fc']
+        if args.keep_first_last: args.names_sp_layers=[name for name in args.names_sp_layers if name!='conv1' and name!='fc' and name != 'Conv2d_1a_3x3.conv']
         args.names_sp_layers = [k for k in args.names_sp_layers if 'downsample' not in k] if args.ignore_downsample else args.names_sp_layers
         if args.num_sp_layers == 0 and not args.keep_first_last:
             args.names_sp_layers = []
@@ -422,14 +426,14 @@ def main_worker(args):
                 cached_qinput[module] = []
             # Meanwhile store data in the RAM.
             cached_qinput[module].append(input[0].detach().cpu())
-            print(name)
+            # print(name)
 
         def hook(name,module, input, output):
             if module not in cached_input_output:
                 cached_input_output[module] = []
             # Meanwhile store data in the RAM.
             cached_input_output[module].append((input[0].detach().cpu(), output.detach().cpu()))
-            print(name)
+            # print(name)
 
         from models.modules.quantize import QConv2d, QLinear
         handlers = []
@@ -473,7 +477,7 @@ def main_worker(args):
                 handler.remove()            
             print("\nOptimize {}:{} for {} bit of shape {}".format(i, layer.name, layer.num_bits, layer.weight.shape))
             mse_before, mse_after, snr_before, snr_after, kurt_in, kurt_w = \
-                optimize_layer(layer, cached_input_output[layer], args.optimize_weights)
+                optimize_layer(layer, cached_input_output[layer], args.optimize_weights, batch_size=args.batch_size, model_name=args.model)
             print("\nMSE before optimization: {}".format(mse_before))
             print("MSE after optimization:  {}".format(mse_after))
             mse_df.loc[i, 'name'] = layer.name
@@ -485,10 +489,6 @@ def main_worker(args):
             mse_df.loc[i, 'snr_after'] = snr_after
             mse_df.loc[i, 'kurt_in'] = kurt_in
             mse_df.loc[i, 'kurt_w'] = kurt_w
-            if i > 0 and i % print_freq == 0:
-                print('\n')
-                val_results = trainer.validate(val_data.get_loader())
-                logging.info(val_results)
 
         mse_csv = args.evaluate + '.mse.csv'
         mse_df.to_csv(mse_csv)
@@ -663,6 +663,8 @@ def main_worker(args):
         #print('Please Choose one of the following ....')
         if model_config['measure']:
             results = trainer.validate(train_data.get_loader(),rec=args.rec)
+            # results = trainer.validate(val_data.get_loader())
+            # print(results)
         else: 
             if args.evaluate_init_configuration:   
                 results = trainer.validate(val_data.get_loader())

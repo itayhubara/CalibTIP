@@ -99,8 +99,7 @@ def adaquant(layer, cached_inps, cached_outs, test_inp, test_out, lr1=1e-4, lr2=
     return mse_before.item(), mse_after.item()
 
 
-def optimize_layer(layer, in_out, optimize_weights=False):
-    batch_size = 100
+def optimize_layer(layer, in_out, optimize_weights=False, batch_size=100, model_name=None):
 
     # if layer.name == 'features.17.conv.0.0' or layer.name == 'features.17.conv.1.0':
     #     dump("mobilenet_v2", layer, in_out)
@@ -120,11 +119,18 @@ def optimize_layer(layer, in_out, optimize_weights=False):
     # print("MSE after qparams: {}".format(mse_after))
 
     if optimize_weights:
-        if 'conv1' in layer.name or 'conv2' in layer.name:
-        # if layer.name.endswith('0.0') or layer.name.endswith('0.1') or layer.name.endswith('18.0'):
-            mse_before, mse_after = adaquant(layer, cached_inps, cached_outs, test_inp, test_out, iters=100, lr1=1e-5, lr2=1e-4,relu=True)
+        relu_condition = lambda layer_name: False
+        if model_name is not None and 'resnet' in model_name:
+            relu_condition = lambda layer_name: 'conv1' in layer_name or 'conv2' in layer_name
+        elif 'inception_v3' == model_name:
+            relu_condition = lambda layer_name: 'conv' in layer_name
+        elif 'mobilenet_v2' == model_name:
+            relu_condition = lambda layer_name: layer_name.endswith('0.0') or layer_name.endswith('0.1') or layer_name.endswith('18.0')
+
+        if relu_condition(layer.name):
+            mse_before, mse_after = adaquant(layer, cached_inps, cached_outs, test_inp, test_out, iters=1000, lr1=1e-5, lr2=1e-4,relu=True)
         else:
-            mse_before, mse_after = adaquant(layer, cached_inps, cached_outs, test_inp, test_out, iters=100, lr1=1e-5, lr2=1e-4)
+            mse_before, mse_after = adaquant(layer, cached_inps, cached_outs, test_inp, test_out, iters=1000, lr1=1e-5, lr2=1e-4)
         mse_before_opt = mse_before
         print("MSE before adaquant: {}".format(mse_before))
         print("MSE after adaquant: {}".format(mse_after))
