@@ -26,7 +26,7 @@ do
 prec_dict=$(python ip_txt_config_parser.py --config-file $configs_file --compression_rate $cr)
 python main.py --model $model  --nbits_weight $nbits_weight --nbits_act $nbits_act --num-sp-layers $num_sp_layers --evaluate results/$workdir/$model.absorb_bn --model-config "{'batch_norm': False,'measure': True, 'perC': $perC}" -b 100 --rec --dataset imagenet_calib --datasets-dir $datasets_dir --device-ids 0 -lpd "$prec_dict"
 if [ "$5" = True ]; then
-# Run adaquant to minimize MSE of the output with respect to range, zero point and small perturations in parameters
-python main.py --adaquant --optimize-weights --nbits_weight $nbits_weight --nbits_act $nbits_act  --num-sp-layers $num_sp_layers  --model $model -b 100 --evaluate results/$workdir/$model.absorb_bn.measure$perC_suffix --model-config "{'batch_norm': False,'measure': False, 'perC': $perC}" --dataset imagenet_calib --datasets-dir $datasets_dir -lpd "$prec_dict" --res-log adaquant.csv --cmp $cr
+# Evaluate on validation set
+python main.py --nbits_weight $nbits_weight --nbits_act $nbits_act --model $model -b 256 --evaluate results/$workdir/$model.absorb_bn.measure$perC_suffix --evaluate_init_configuration --model-config "{'batch_norm': False,'measure': False, 'perC': $perC}" --dataset imagenet_calib --datasets-dir $datasets_dir -lpd "$prec_dict" --res-log adaquant.csv --cmp $cr
 fi
 done

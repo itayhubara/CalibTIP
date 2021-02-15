@@ -189,6 +189,7 @@ parser.add_argument('--precisions', type=str, default='4;8',
                     help='precisions of all optimized models, separated by ;')
 parser.add_argument('--tuning-iter', default=1, type=int, help='Number of iterations to tune batch normalization layers.')
 parser.add_argument('--res-log', default=None, help='path to result pandas log file')
+parser.add_argument('--cmp', type=str, help='compression_ratio')
 
 def main():
     args = parser.parse_args()
@@ -393,6 +394,9 @@ def main_worker(args):
         if args.num_sp_layers == 0 and not args.keep_first_last:
             args.names_sp_layers = []
 
+    if args.layers_precision_dict is not None:
+        print(args.layers_precision_dict)
+
     prunner = None 
     trainer = Trainer(model,prunner, criterion, optimizer,
                       device_ids=args.device_ids, device=args.device, dtype=dtype,
@@ -500,6 +504,21 @@ def main_worker(args):
         cached_input_output = None
         val_results = trainer.validate(val_data.get_loader())
         logging.info(val_results)
+
+        if args.res_log is not None:
+            if not os.path.exists(args.res_log):
+                df = pd.DataFrame()
+            else:
+                df = pd.read_csv(args.res_log, index_col=0)
+
+            ckp = ntpath.basename(args.evaluate)
+            if args.cmp is not None:
+                ckp += '_{}'.format(args.cmp)
+            adaquant_type = 'adaquant_seq' if args.seq_adaquant else 'adaquant_parallel'
+            df.loc[ckp, 'acc_' + adaquant_type] = val_results['prec1']
+            df.to_csv(args.res_log)
+            # print(df)
+
     elif args.per_layer:
         # Store input/output for all quantizable layers
         calib_all_8_results = trainer.validate(train_data.get_loader())
@@ -675,8 +694,9 @@ def main_worker(args):
                         df = pd.read_csv(args.res_log, index_col=0)
 
                     ckp = ntpath.basename(args.evaluate)
+                    if args.cmp is not None:
+                        ckp += '_{}'.format(args.cmp)
                     df.loc[ckp, 'acc_base'] = results['prec1']
-                    df.loc[ckp, 'loss_base'] = results['loss']
                     df.to_csv(args.res_log)
            
         if args.extract_bias_mean:

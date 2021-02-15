@@ -281,7 +281,7 @@ class Trainer(object):
                     self.model=self.pruner.prune_layers(self.model)
 
             # measure accuracy and record loss
-            prec1, prec5 = accuracy(output, target, topk=(1, 5))
+            prec1, prec5 = accuracy(output.cpu(), target, topk=(1, 5))
             meters['loss'].update(float(loss), inputs.size(0))
             meters['prec1'].update(float(prec1), inputs.size(0))
             meters['prec5'].update(float(prec5), inputs.size(0))
