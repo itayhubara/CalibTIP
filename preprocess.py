@@ -101,15 +101,14 @@ def multi_transform(transform_fn, duplicates=1, dim=0):
 
 def get_transform(transform_name='imagenet', input_size=None, scale_size=None,
                   normalize=None, augment=True, cutout=None, autoaugment=False,
-                  duplicates=1, num_crops=1):
+                  duplicates=1, num_crops=1, inception_prep=False):
     normalize = normalize or _IMAGENET_STATS
     transform_fn = None
 
     if 'imagenet' in transform_name:  # inception augmentation is default for imagenet
         scale_size = scale_size or (input_size or 256)
         input_size = input_size or 224
-        augment = True
-        if augment:
+        if inception_prep:
             transform_fn = inception_preproccess(input_size,
                                                  normalize=normalize)
         else:

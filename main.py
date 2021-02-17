@@ -386,7 +386,8 @@ def main_worker(args):
                                       'input_size': args.input_size,  'batch_size': args.batch_size, 'shuffle': not args.seq_adaquant,
                                       'num_workers': args.workers, 'pin_memory': True, 'drop_last': True,
                                       'distributed': args.distributed, 'duplicates': args.duplicates, 'autoaugment': args.autoaugment,
-                                      'cutout': {'holes': 1, 'length': 16} if args.cutout else None})
+                                      'cutout': {'holes': 1, 'length': 16} if args.cutout else None,
+                                      'inception_prep': 'inception' in args.model})
     if args.names_sp_layers is None and args.layers_precision_dict is None:
         args.names_sp_layers =  [key[:-7] for key in model.state_dict().keys() if 'weight' in key and 'running' not in key and ('conv' in key or 'downsample.0' in key or 'fc' in key)]
         if args.keep_first_last: args.names_sp_layers=[name for name in args.names_sp_layers if name!='conv1' and name!='fc' and name != 'Conv2d_1a_3x3.conv']

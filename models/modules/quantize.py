@@ -14,6 +14,7 @@ QParams = namedtuple('QParams', ['range', 'zero_point', 'num_bits'])
 _DEFAULT_FLATTEN = (1, -1)
 _DEFAULT_FLATTEN_GRAD = (0, -1)
 QZP = True
+QUANTIZE = True
 
 
 def _deflatten_as(x, x_full):
@@ -524,7 +525,7 @@ class QConv2d(nn.Conv2d):
                 self.num_bits, shape_measure=(out_channels if perC else 1, 1, 1, 1), flatten_dims=(1,-1) if perC else (0,-1), measure=measure, reduce_dim=None if perC else 0)
         self.biprecision = biprecision
         self.cal_params = cal_qparams
-        self.quantize = True
+        self.quantize = QUANTIZE
 
     def forward(self, input):
         qinput = self.quantize_input(input) if self.quantize else input
@@ -579,7 +580,7 @@ class QConv2dVQ(nn.Conv2d):
                 self.num_bits, shape_measure=(out_channels if perC else 1, 1, 1, 1), flatten_dims=(1,-1) if perC else (0,-1), measure=measure, reduce_dim=None if perC else 0)
         self.biprecision = biprecision
         self.cal_params = cal_qparams
-        self.quantize = True
+        self.quantize = QUANTIZE
 
     def reset(self):
         stdv = 1. / math.sqrt(self.U.size(1))
@@ -733,7 +734,7 @@ class QLinear(nn.Linear):
             self.quantize_weight = QuantThUpdate(self.num_bits,shape_measure=(out_features if perC else 1, 1), flatten_dims=(1,-1) if perC else (0,-1), measure=measure,reduce_dim=None if perC else 0)
         self.measure = measure
         self.cal_params = cal_qparams
-        self.quantize = True
+        self.quantize = QUANTIZE
 
     def forward(self, input):
         qinput = self.quantize_input(input) if self.quantize else input
@@ -778,7 +779,7 @@ class QLinearVQ(nn.Linear):
             self.quantize_weight = QuantThUpdate(self.num_bits,shape_measure=(out_features if perC else 1, 1), flatten_dims=(1,-1) if perC else (0,-1), measure=measure,reduce_dim=None if perC else 0)
         self.measure = measure
         self.cal_params = cal_qparams
-        self.quantize = True
+        self.quantize = QUANTIZE
 
     def reset(self):
         stdv = 1. / math.sqrt(self.U.size(1))
