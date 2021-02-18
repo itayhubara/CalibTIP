@@ -4,6 +4,8 @@ export model_vis=${2:-"resnet50"}
 export nbits_weight=${3:-4}
 export nbits_act=${4:-4}
 export configs_file=${6:-''}
+export depth=${7:-50}
+export res_log=${8:-"adaquant.csv"}
 export adaquant_suffix=''
 if [ "$5" = True ]; then
     export adaquant_suffix='.adaquant'
@@ -24,9 +26,9 @@ do
 #python create_calib_folder.py $num_samples
 # measure range and zero point on calibset
 prec_dict=$(python ip_txt_config_parser.py --config-file $configs_file --compression_rate $cr)
-python main.py --model $model  --nbits_weight $nbits_weight --nbits_act $nbits_act --num-sp-layers $num_sp_layers --evaluate results/$workdir/$model.absorb_bn --model-config "{'batch_norm': False,'measure': True, 'perC': $perC}" -b 100 --rec --dataset imagenet_calib --datasets-dir $datasets_dir --device-ids 0 -lpd "$prec_dict"
+python main.py --model $model  --nbits_weight $nbits_weight --nbits_act $nbits_act --num-sp-layers $num_sp_layers --evaluate results/$workdir/$model.absorb_bn --model-config "{'batch_norm': False,'measure': True, 'perC': $perC, 'depth': $depth}" -b 100 --rec --dataset imagenet_calib --datasets-dir $datasets_dir --device-ids 0 -lpd "$prec_dict"
 if [ "$5" = True ]; then
 # Run adaquant to minimize MSE of the output with respect to range, zero point and small perturations in parameters
-python main.py --adaquant --optimize-weights --nbits_weight $nbits_weight --nbits_act $nbits_act  --num-sp-layers $num_sp_layers  --model $model -b 100 --evaluate results/$workdir/$model.absorb_bn.measure$perC_suffix --model-config "{'batch_norm': False,'measure': False, 'perC': $perC}" --dataset imagenet_calib --datasets-dir $datasets_dir -lpd "$prec_dict" --res-log adaquant.csv --cmp $cr
+python main.py --adaquant --optimize-weights --nbits_weight $nbits_weight --nbits_act $nbits_act  --num-sp-layers $num_sp_layers  --model $model -b 100 --evaluate results/$workdir/$model.absorb_bn.measure$perC_suffix --model-config "{'batch_norm': False,'measure': False, 'perC': $perC, 'depth': $depth}" --dataset imagenet_calib --datasets-dir $datasets_dir -lpd "$prec_dict" --res-log $res_log --cmp $cr
 fi
 done

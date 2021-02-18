@@ -1,0 +1,13 @@
+Compression thr	Layers in int4
+0.13	['features.5.conv.0.0', 'features.5.conv.2', 'features.6.conv.0.0', 'features.7.conv.2', 'features.8.conv.0.0', 'features.8.conv.2', 'features.9.conv.0.0', 'features.9.conv.2', 'features.10.conv.0.0', 'features.10.conv.2', 'features.11.conv.0.0', 'features.11.conv.2', 'features.12.conv.0.0', 'features.12.conv.2', 'features.13.conv.0.0', 'features.13.conv.2', 'features.14.conv.0.0', 'features.14.conv.2', 'features.15.conv.0.0', 'features.15.conv.1.0', 'features.15.conv.2', 'features.16.conv.0.0', 'features.16.conv.1.0', 'features.16.conv.2', 'features.17.conv.0.0', 'features.17.conv.1.0', 'features.17.conv.2']
+0.14	['features.8.conv.0.0', 'features.8.conv.2', 'features.9.conv.0.0', 'features.9.conv.2', 'features.11.conv.2', 'features.12.conv.0.0', 'features.12.conv.2', 'features.13.conv.0.0', 'features.13.conv.2', 'features.14.conv.0.0', 'features.14.conv.2', 'features.15.conv.0.0', 'features.15.conv.2', 'features.16.conv.0.0', 'features.16.conv.2', 'features.17.conv.0.0', 'features.17.conv.2']
+0.15	['features.12.conv.0.0', 'features.12.conv.2', 'features.13.conv.0.0', 'features.13.conv.2', 'features.14.conv.0.0', 'features.14.conv.2', 'features.15.conv.0.0', 'features.15.conv.2', 'features.16.conv.0.0', 'features.16.conv.2', 'features.17.conv.0.0', 'features.17.conv.2']
+0.16	['features.12.conv.0.0', 'features.12.conv.2', 'features.13.conv.0.0', 'features.14.conv.2', 'features.15.conv.0.0', 'features.15.conv.2', 'features.16.conv.0.0', 'features.16.conv.2', 'features.17.conv.0.0', 'features.17.conv.2']
+0.17	['features.14.conv.2', 'features.15.conv.0.0', 'features.15.conv.2', 'features.16.conv.0.0', 'features.16.conv.2', 'features.17.conv.0.0', 'features.17.conv.2']
+0.18	['features.15.conv.0.0', 'features.15.conv.2', 'features.16.conv.0.0', 'features.16.conv.2', 'features.17.conv.0.0', 'features.17.conv.2']
+0.19	['features.15.conv.0.0', 'features.15.conv.2', 'features.16.conv.0.0', 'features.16.conv.2', 'features.17.conv.2']
+0.20	['features.15.conv.0.0', 'features.15.conv.2', 'features.16.conv.0.0', 'features.17.conv.2']
+0.21	['features.15.conv.0.0', 'features.15.conv.2', 'features.17.conv.2']
+0.22	['features.15.conv.0.0', 'features.17.conv.2']
+0.23	['features.17.conv.2']
+0.24	['features.17.conv.2']

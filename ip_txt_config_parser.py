@@ -5,13 +5,17 @@ parser.add_argument('--config-file', type=str, metavar='FILE', help='path to con
 parser.add_argument('--compression_rate', default=0, type=float, help='Index of precision configuration to get')
 args = parser.parse_args()
 
+config_dict = {}
 f = open(args.config_file,"r")
 for i in range(13):
     aa = f.readline()
-    bb = aa.replace('\t', ', ').replace('\n','').replace('[','').replace(']','').replace("'",'').split(', ')
-    if bb[0] != str(args.compression_rate):
+    bb = aa.replace('\t', ', ').replace('    ', ', ').replace('\n','').replace('[','').replace(']','').replace("'",'').split(', ')
+    try:
+        cmp = float(bb[0])
+        if cmp != args.compression_rate:
+            continue
+    except ValueError:
         continue
-    config_dict = {}
     for key in bb[1:]:
         config_dict[key] = [4,4]
 print(config_dict)
