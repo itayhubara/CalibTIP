@@ -6,6 +6,7 @@ Pull paper is avialbale at: https://arxiv.org/pdf/2006.10518.pdf
 This repository is based on [convNet.pytorch](https://github.com/eladhoffer/convNet.pytorch) repo.  please ensure that you are using pytorch 1.3+.
 To repreduce the results 
 ```bash
+python create_calib_folder.py
 sh scripts/advanced_pipeline.sh
 sh scripts/light_pipeline.sh
 ```
